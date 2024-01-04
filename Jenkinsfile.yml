@@ -21,7 +21,7 @@ pipeline {
     }
     stage('Compile') {
       steps {
-        sh 'CGO_ENABLED=1 go build -a -tags osusergo,netgo -ldflags '-extldflags "-static"''
+        sh 'CGO_ENABLED=1 go build -a -tags osusergo,netgo -ldflags \'-extldflags "-static"\''
       }
     }
   }
