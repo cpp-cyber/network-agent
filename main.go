@@ -8,6 +8,7 @@ import (
     "bytes"
 	"net/http"
 	"strconv"
+    "runtime"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
@@ -148,6 +149,9 @@ func isPrivateIP(ip string) bool {
 }
 
 func isInterfaceUp(interfaceName string) bool {
+    if runtime.GOOS == "windows" {
+        return true
+    }
     iface, err := net.InterfaceByName(interfaceName)
     if err != nil {
         fmt.Printf("Error getting interface %s: %s", interfaceName, err)
