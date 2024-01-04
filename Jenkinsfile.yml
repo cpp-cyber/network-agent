@@ -3,12 +3,25 @@ pipeline {
     label 'network-agent'
   }
 
+  environment {
+    LD_LIBRARY_PATH = "-L/network-agent-linux/libpcap-1.4.0"
+    CGO_LDFLAGS = "-L/network-agent-linux/libpcap-1.4.0"
+    CGO_CPPFLAGS = "-I/network-agent-linux/libpcap-1.4.0"
+  }
+
   tools { go '1.21.5' }
 
   stages {
+    stage('Prepare Workspace') {
+      steps {
+        sh 'curl https://www.tcpdump.org/release/libpcap-1.4.0.tar.gz --output libpcap-1.4.0.tar.gz'
+        sh 'tar xvf libpcap-1.4.0.tar.gz'
+        sh 'cd libpcap-1.4.0.tar.gz; ./configure --with-p;cap=linux && make'
+      }
+    }
     stage('Compile') {
       steps {
-        sh 'go build'
+        sh 'CGO_ENABLED=1 go build -a -tags osusergo,netgo -ldflags '-extldflags "-static"''
       }
     }
   }
