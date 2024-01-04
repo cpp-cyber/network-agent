@@ -1,7 +1,5 @@
 pipeline {
-  agent {
-    label 'network-agent'
-  }
+  agent none
 
   environment {
     LD_LIBRARY_PATH = "-L/network-agent-linux/libpcap-1.4.0"
@@ -14,6 +12,9 @@ pipeline {
 
   stages {
     stage('Prepare Workspace') {
+      agent {
+        label 'network-agent'
+      }
       steps {
         sh 'curl https://www.tcpdump.org/release/libpcap-1.4.0.tar.gz --output libpcap-1.4.0.tar.gz'
         sh 'tar xvf libpcap-1.4.0.tar.gz'
@@ -21,8 +22,15 @@ pipeline {
       }
     }
     stage('Compile') {
-      steps {
-        sh '/var/jenkins/build.sh'
+      parallel {
+        stage('Ubuntu 22') {
+          agent {
+            label 'network-agent'
+          }
+          steps {
+            sh '/var/jenkins/build.sh'
+          }
+        }
       }
     }
   }
