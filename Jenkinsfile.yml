@@ -1,5 +1,7 @@
 pipeline {
-  agent network-agent
+  agent {
+    tag 'network-agent'
+  }
 
   tools { go '1.21.5' }
 
