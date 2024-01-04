@@ -1,12 +1,6 @@
 pipeline {
   agent none
 
-  environment {
-    LD_LIBRARY_PATH = "-L/network-agent-linux/libpcap-1.4.0"
-    CGO_LDFLAGS = "-L/network-agent-linux/libpcap-1.4.0"
-    CGO_CPPFLAGS = "-I/network-agent-linux/libpcap-1.4.0"
-    VERSION = "v1.0.0"
-  }
 
   tools { go '1.21.5' }
 
@@ -26,6 +20,12 @@ pipeline {
         stage('Ubuntu 22') {
           agent {
             label 'network-agent'
+          }
+          environment {
+            LD_LIBRARY_PATH = "-L/network-agent-linux/libpcap-1.4.0"
+            CGO_LDFLAGS = "-L/network-agent-linux/libpcap-1.4.0"
+            CGO_CPPFLAGS = "-I/network-agent-linux/libpcap-1.4.0"
+            VERSION = "v1.0.0"
           }
           steps {
             sh '/var/jenkins/build.sh'
