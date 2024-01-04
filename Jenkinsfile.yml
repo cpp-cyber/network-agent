@@ -1,0 +1,13 @@
+pipeline {
+  agent network-agent
+
+  tools { go '1.21.5' }
+
+  stages {
+    stage('Compile') {
+      steps {
+        sh 'go build'
+      }
+    }
+  }
+}
