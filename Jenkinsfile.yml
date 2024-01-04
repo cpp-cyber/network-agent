@@ -17,12 +17,12 @@ pipeline {
       steps {
         sh 'curl https://www.tcpdump.org/release/libpcap-1.4.0.tar.gz --output libpcap-1.4.0.tar.gz'
         sh 'tar xvf libpcap-1.4.0.tar.gz'
-        sh 'cd libpcap-1.4.0; ./configure --with-p;cap=linux && make'
+        sh 'cd libpcap-1.4.0; ./configure --with-pcap=linux && make'
       }
     }
     stage('Compile') {
       steps {
-        sh 'CGO_ENABLED=1 go build -a -tags osusergo,netgo -ldflags \'-extldflags "-static"\' -o network-agent-$VERSION.$BUILD_ID'
+        sh '/var/jenkins/build.sh'
       }
     }
   }
