@@ -15,8 +15,8 @@ pipeline {
     stage('Prepare Workspace') {
       steps {
         sh 'curl https://www.tcpdump.org/release/libpcap-1.4.0.tar.gz --output libpcap-1.4.0.tar.gz'
-        sh 'tar xvf libpcap-1.4.0'
-        sh 'cd libpcap-1.4.0.tar.gz; ./configure --with-p;cap=linux && make'
+        sh 'tar xvf libpcap-1.4.0.tar.gz'
+        sh 'cd libpcap-1.4.0; ./configure --with-p;cap=linux && make'
       }
     }
     stage('Compile') {
