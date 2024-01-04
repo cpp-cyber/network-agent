@@ -1,6 +1,6 @@
 pipeline {
   agent {
-    tag 'network-agent'
+    label 'network-agent'
   }
 
   tools { go '1.21.5' }
