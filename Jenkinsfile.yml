@@ -1,5 +1,7 @@
 pipeline {
-  agent none
+  agent {
+    label 'network-agent'
+  }
 
   environment {
     LD_LIBRARY_PATH = "-L/var/jenkins/workspace/Network-Agent_main/libpcap-1.4.0"
@@ -13,7 +15,7 @@ pipeline {
   stages {
     stage('Prepare Workspace') {
       agent {
-        label 'network-agent'
+        label 'network-agent-linux'
       }
       steps {
         sh 'curl https://www.tcpdump.org/release/libpcap-1.4.0.tar.gz --output libpcap-1.4.0.tar.gz'
@@ -25,10 +27,19 @@ pipeline {
       parallel {
         stage('Ubuntu 22') {
           agent {
-            label 'network-agent'
+            label 'network-agent-ubuntu22'
           }
           steps {
             sh '/var/jenkins/build.sh'
+          }
+        }
+
+        stage('Windows') {
+          agent {
+            label 'network-agent-windows'
+          }
+          steps {
+            bat 'go build -ldflags -H=windowgui -o windows-agent-$VERSION.$BUILD_ID main-windows.go'
           }
         }
       }
