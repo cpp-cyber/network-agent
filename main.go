@@ -1,14 +1,14 @@
 package main
 
 import (
-	"fmt"
     "os"
     "encoding/json"
 	"net"
     "bytes"
 	"net/http"
 	"strconv"
-    "strings"
+    "runtime"
+    "log"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
@@ -18,19 +18,35 @@ import (
 var privateIPBlocks []*net.IPNet
 
 func main() {
+    f, err := os.OpenFile("network-agent.txt", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+    if err != nil {
+        log.Fatalf("error opening file: %v", err)
+    }
+    defer f.Close()
+
+    log.SetOutput(f)
 
 	for _, cidr := range []string{
 		"10.0.0.0/8",     // RFC1918
 		"172.16.0.0/12",  // RFC1918
 		"192.168.0.0/16", // RFC1918
 	} {
-		_, block, _ := net.ParseCIDR(cidr)
+		_, block, err := net.ParseCIDR(cidr)
+        if err != nil {
+			log.Printf("parse error on %q: %v", cidr, err)
+		}
 		privateIPBlocks = append(privateIPBlocks, block)
 	}
 
-    ifaces, _ := pcap.FindAllDevs()
+    log.Println("Starting up...")
+
+    ifaces, err := pcap.FindAllDevs()
+    if err != nil {
+        log.Println(err)
+    }
 
     for _, device := range ifaces {
+        log.Println("Interface Name: ", device.Name)
         go capturePackets(device.Name)
     }
 
@@ -38,13 +54,15 @@ func main() {
 }
 
 func capturePackets(iface string) {
-    if strings.Contains(iface, "Loopback") {
+    if !isInterfaceUp(iface) {
+        log.Println("Interface is down: ", iface)
         return
     }
 
+    log.Println("Capturing packets on interface: ", iface)
     handle, err := pcap.OpenLive(iface, 1600, true, pcap.BlockForever)
     if err != nil {
-        return
+        log.Println(err)
     }
     defer handle.Close()
 
@@ -87,7 +105,7 @@ func capturePackets(iface string) {
 
             dstPort, err = strconv.Atoi(dpt)
             if err != nil {
-                fmt.Println(err)
+                log.Println(err)
             }
 
             if dstPort > 30000 {
@@ -96,7 +114,7 @@ func capturePackets(iface string) {
 
             hostname, err := os.Hostname()
             if err != nil {
-                return
+                log.Println(err)
             }
 
             host := interface{}(map[string]interface{}{
@@ -108,7 +126,7 @@ func capturePackets(iface string) {
 
             jsonData, err := json.Marshal(host)
             if err != nil {
-                fmt.Println(err)
+                log.Println(err)
             }
 
             postData := bytes.NewBuffer(jsonData)
@@ -123,7 +141,7 @@ func isPrivateIP(ip string) bool {
 
     ipAddr := net.ParseIP(ip)
     if ipAddr == nil {
-        fmt.Println("Invalid IP address")
+        log.Println("Invalid IP address")
         return false
     }
 
@@ -135,3 +153,15 @@ func isPrivateIP(ip string) bool {
 	return false
 }
 
+func isInterfaceUp(interfaceName string) bool {
+    if runtime.GOOS == "windows" {
+        return true
+    }
+
+    iface, err := net.InterfaceByName(interfaceName)
+    if err != nil {
+        log.Printf("Error getting interface %s: %s", interfaceName, err)
+        return false
+    }
+    return iface.Flags&net.FlagUp != 0
+}
