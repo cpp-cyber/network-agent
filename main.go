@@ -46,7 +46,7 @@ func main() {
     }
 
     for _, device := range ifaces {
-        log.Println("Interface Name: ", device.Name)
+        log.Printf("Interface Name: %s", device.Name)
         go capturePackets(device.Name)
     }
 
@@ -55,7 +55,7 @@ func main() {
 
 func capturePackets(iface string) {
     if !isInterfaceUp(iface) {
-        log.Println("Interface is down: ", iface)
+        log.Printf("Interface is down: %s", iface)
         return
     }
 
