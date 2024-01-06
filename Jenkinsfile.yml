@@ -39,7 +39,7 @@ pipeline {
             label 'network-agent-windows'
           }
           steps {
-            bat 'go build -ldflags -H=windowsgui -o windows-agent-%VERSION%.%BUILD_ID% main-windows.go'
+            bat 'go build -ldflags -H=windowsgui -o windows-agent-%VERSION%.%BUILD_ID%.exe main-windows.go'
           }
         }
       }
