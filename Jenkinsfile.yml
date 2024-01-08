@@ -31,8 +31,8 @@ pipeline {
             label 'network-agent-ubuntu22'
           }
           steps {
-            sh 'printenv'
-            sh '/var/jenkins/build.sh $GITHUB_TOKEN'
+            sh 'echo $GITHUB_TOKEN_PSW'
+            sh '/var/jenkins/build.sh $GITHUB_TOKEN_PSW'
           }
         }
       }
