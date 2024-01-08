@@ -9,7 +9,6 @@ pipeline {
     CGO_CPPFLAGS = "-I/var/jenkins/workspace/Network-Agent_main/libpcap-1.4.0"
     VERSION = "v1.0.1"
     GITHUB_TOKEN = credentials('network-agent')
-
   }
 
   tools { go '1.21.5' }
@@ -32,6 +31,7 @@ pipeline {
             label 'network-agent-ubuntu22'
           }
           steps {
+            sh 'printenv'
             sh '/var/jenkins/build.sh $GITHUB_TOKEN'
           }
         }
