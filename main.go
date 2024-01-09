@@ -3,13 +3,13 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"runtime"
 	"strconv"
-    "flag"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -43,7 +43,7 @@ func main() {
 	}
 
 	for _, cidr := range []string{
-		"10.0.0.0/8",
+	    "10.0.0.0/8",
         "172.12.0.0/12",
         "192.168.0.0/16",
 	} {
