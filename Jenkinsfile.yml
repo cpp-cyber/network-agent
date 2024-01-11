@@ -45,7 +45,7 @@ pipeline {
         label 'network-agent-ubuntu22'
       }
       steps {
-        /var/jenkins/publish.sh 
+        sh '/var/jenkins/publish.sh'
       }
     }
   }
