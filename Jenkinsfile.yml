@@ -31,9 +31,33 @@ pipeline {
             label 'network-agent-ubuntu22'
           }
           steps {
-            sh '/var/jenkins/build.sh $GITHUB_TOKEN_PSW'
+            sh '/var/jenkins/build.sh'
           }
         }
+        stage('Dragonfly') {
+          agent {
+            label 'network-agent-dragonfly'
+          }
+          steps {
+            sh '/var/jenkins/build.sh'
+          }
+        }
+        stage('FreeBSD') {
+          agent {
+            label 'network-agent-freebsd'
+          }
+          steps {
+            sh '/var/jenkins/build.sh'
+          }
+        }
+      }
+    }
+    stage('Publish') {
+      agent {
+        label 'network-agent-ubuntu22'
+      }
+      steps {
+        /var/jenkins/publish.sh 
       }
     }
   }
