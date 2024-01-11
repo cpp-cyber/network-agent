@@ -4,21 +4,30 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"github.com/gorilla/websocket"
 )
 
 var ignore []*net.IPNet
 var privateIPBlocks []*net.IPNet
 var SERVER_IP *string
+var input = make(chan []byte)
+var status = make(chan []byte)
+var hostname, _ = os.Hostname()
+var connIP string
 
 func main() {
     SERVER_IP = flag.String("server", "", "Server IP")
@@ -60,12 +69,39 @@ func main() {
 		log.Println(err)
 	}
 
+    RegisterAgent()
+
+    conn := initializeWebSocket(*SERVER_IP)
+    defer conn.Close()
+    statusConn := initializeStatusWebSocket(*SERVER_IP)
+    defer statusConn.Close()
+
+    connIP = strings.Split(conn.LocalAddr().String(), ":")[0]
+
+    go checkin()
+
 	for _, device := range ifaces {
 		log.Printf("Interface Name: %s", device.Name)
 		go capturePackets(device.Name)
 	}
 
-	select {}
+    for {
+        select {
+            case t := <-input:
+                err := conn.WriteMessage(websocket.TextMessage, t)
+                if err != nil {
+                    log.Println(err)
+                    return
+                }
+
+            case t := <-status:
+                err := statusConn.WriteMessage(websocket.TextMessage, t)
+                if err != nil {
+                    log.Println(err)
+                    return
+                }
+        }
+    }
 }
 
 func capturePackets(iface string) {
@@ -138,14 +174,7 @@ func capturePackets(iface string) {
 				log.Println(err)
 			}
 
-			postData := bytes.NewBuffer(jsonData)
-            postUrl := "http://"+*SERVER_IP+"/api/connections"
-            resp, err := http.Post(postUrl, "application/json", postData)
-            if err != nil {
-                log.Println(err)
-                return
-            }
-            defer resp.Body.Close()
+            input <- jsonData
 		}
 	}
 }
@@ -175,4 +204,53 @@ func isInterfaceUp(interfaceName string) bool {
 		return false
 	}
 	return iface.Flags&net.FlagUp != 0
+}
+
+func initializeWebSocket(server string) *websocket.Conn {
+    log.Println("Initializing WebSocket...")
+    url := url.URL{Scheme: "ws", Host: server, Path: "/ws"}
+    conn, _, err := websocket.DefaultDialer.Dial(url.String(), nil)
+    if err != nil {
+        log.Println(err)
+    }
+    return conn
+}
+
+func initializeStatusWebSocket(server string) *websocket.Conn {
+    log.Println("Initializing status WebSocket...")
+    url := url.URL{Scheme: "ws", Host: server, Path: "/ws/agent/status"}
+    conn, _, err := websocket.DefaultDialer.Dial(url.String(), nil)
+    if err != nil {
+        log.Println(err)
+    }
+    return conn
+}
+
+func RegisterAgent() {
+    log.Println("Registering agent...")
+
+    hostOS := runtime.GOOS
+
+    host := interface{}(map[string]interface{}{
+        "Hostname": hostname,
+        "HostOS": hostOS,
+    })
+
+    jsonData, err := json.Marshal(host)
+    if err != nil {
+        log.Println(err)
+    }
+
+    _, err = http.Post("http://"+*SERVER_IP+"/api/agents/add", "application/json", bytes.NewBuffer(jsonData))
+    if err != nil {
+        log.Println(err)
+    }
+}
+
+func checkin() {
+    ping := []byte(fmt.Sprintf(`{"IP": "%s", "Status": "Alive"}`, connIP))
+    for {
+        status <- ping
+        time.Sleep(2 * time.Second)
+    }
 }
