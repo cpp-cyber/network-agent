@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+    "hash/fnv"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -28,6 +29,7 @@ var input = make(chan []byte)
 var status = make(chan []byte)
 var hostname, _ = os.Hostname()
 var connIP string
+var hostHash string
 
 func main() {
     SERVER_IP = flag.String("server", "", "Server IP")
@@ -69,6 +71,8 @@ func main() {
 		log.Println(err)
 	}
 
+
+    hostHash = fmt.Sprint(hash(hostname))
     RegisterAgent()
 
     conn := initializeWebSocket(*SERVER_IP)
@@ -232,6 +236,7 @@ func RegisterAgent() {
     hostOS := runtime.GOOS
 
     host := interface{}(map[string]interface{}{
+        "ID": fmt.Sprint(hostHash),
         "Hostname": hostname,
         "HostOS": hostOS,
     })
@@ -241,6 +246,8 @@ func RegisterAgent() {
         log.Println(err)
     }
 
+    fmt.Println(string(jsonData))
+
     _, err = http.Post("http://"+*SERVER_IP+"/api/agents/add", "application/json", bytes.NewBuffer(jsonData))
     if err != nil {
         log.Println(err)
@@ -248,9 +255,15 @@ func RegisterAgent() {
 }
 
 func checkin() {
-    ping := []byte(fmt.Sprintf(`{"IP": "%s", "Status": "Alive"}`, connIP))
+    ping := []byte(fmt.Sprintf(`{"ID": %s, "Status": "Alive"}`, hostHash))
     for {
         status <- ping
         time.Sleep(2 * time.Second)
     }
+}
+
+func hash(s string) uint32 {
+    h := fnv.New32a()
+    h.Write([]byte(s))
+    return h.Sum32()
 }
