@@ -140,8 +140,12 @@ func capturePackets(iface string) {
 
 			postData := bytes.NewBuffer(jsonData)
             postUrl := "http://"+*SERVER_IP+"/api/connections"
-			http.Post(postUrl, "application/json", postData)
-
+            resp, err := http.Post(postUrl, "application/json", postData)
+            if err != nil {
+                log.Println(err)
+                return
+            }
+            defer resp.Body.Close()
 		}
 	}
 }
