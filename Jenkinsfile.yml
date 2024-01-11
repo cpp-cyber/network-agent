@@ -4,24 +4,14 @@ pipeline {
   }
 
   environment {
-    LD_LIBRARY_PATH = "-L/var/jenkins/workspace/Network-Agent_main/libpcap-1.4.0"
-    CGO_LDFLAGS = "-L/var/jenkins/workspace/Network-Agent_main/libpcap-1.4.0"
-    CGO_CPPFLAGS = "-I/var/jenkins/workspace/Network-Agent_main/libpcap-1.4.0"
+    LD_LIBRARY_PATH = "-L/libpcap-1.4.0"
+    CGO_LDFLAGS = "-L/libpcap-1.4.0"
+    CGO_CPPFLAGS = "-I/libpcap-1.4.0"
     VERSION = "v1.0.1"
     GITHUB_TOKEN = credentials('network-agent')
   }
 
   stages {
-    stage('Prepare Workspace') {
-      agent {
-        label 'network-agent-linux'
-      }
-      steps {
-        sh 'curl https://www.tcpdump.org/release/libpcap-1.4.0.tar.gz --output libpcap-1.4.0.tar.gz'
-        sh 'tar xvf libpcap-1.4.0.tar.gz'
-        sh 'cd libpcap-1.4.0; ./configure --with-pcap=linux && make'
-      }
-    }
     stage('Compile') {
       parallel {
         stage('Ubuntu 22') {
