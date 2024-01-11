@@ -11,8 +11,6 @@ pipeline {
     GITHUB_TOKEN = credentials('network-agent')
   }
 
-  tools { go '1.21.5' }
-
   stages {
     stage('Prepare Workspace') {
       agent {
