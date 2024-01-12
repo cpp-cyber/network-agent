@@ -125,7 +125,7 @@ func capturePackets(iface string) {
 			srcIP = packetNetworkInfo.NetworkFlow().Src().String()
 			dstIP = packetNetworkInfo.NetworkFlow().Dst().String()
 
-            if strings.Contains(srcIP, ":") || strings.Contains(dstIP, ":") || ipIsInBlock(srcIP, ignore) || ipIsInBlock(dstIP, ignore) {
+            if strings.Contains(srcIP, ":") || strings.Contains(dstIP, ":") || ipIsInBlock(srcIP, ignore) || ipIsInBlock(dstIP, ignore) || srcIP == *SERVER_IP || dstIP == *SERVER_IP {
 		        continue
 			}
 
