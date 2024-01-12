@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"net"
 	"net/http"
@@ -12,8 +13,8 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
-    "hash/fnv"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -22,12 +23,15 @@ import (
 )
 
 var ignore []*net.IPNet
-var privateIPBlocks []*net.IPNet
+
 var SERVER_IP *string
+var hostname, _ = os.Hostname()
+
 var input = make(chan []byte)
 var status = make(chan []byte)
-var hostname, _ = os.Hostname()
-var hostHash string
+
+var connMap = make(map[string]int)
+var minConnCount = 5
 
 func main() {
     SERVER_IP = flag.String("server", "", "Server IP")
@@ -50,18 +54,6 @@ func main() {
 		ignore = append(ignore, block)
 	}
 
-	for _, cidr := range []string{
-	    "10.0.0.0/8",
-        "172.12.0.0/12",
-        "192.168.0.0/16",
-	} {
-		_, block, err := net.ParseCIDR(cidr)
-		if err != nil {
-			log.Printf("parse error on %q: %v", cidr, err)
-		}
-		privateIPBlocks = append(privateIPBlocks, block)
-	}
-
 	log.Println("Starting up...")
 
 	ifaces, err := pcap.FindAllDevs()
@@ -69,16 +61,15 @@ func main() {
 		log.Println(err)
 	}
 
-
-    hostHash = fmt.Sprint(hash(hostname))
-    RegisterAgent()
+    hostHash := fmt.Sprint(hash(hostname))
+    RegisterAgent(hostHash)
 
     conn := initializeWebSocket(*SERVER_IP, "/ws")
     defer conn.Close()
     statusConn := initializeWebSocket(*SERVER_IP, "/ws/agent/status")
     defer statusConn.Close()
 
-    go checkin()
+    go checkin(hostHash)
 
 	for _, device := range ifaces {
 		log.Printf("Interface Name: %s", device.Name)
@@ -120,7 +111,6 @@ func capturePackets(iface string) {
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
 		var srcIP, dstIP string
-		var dstPort int
 
 		ethLayer := packet.Layer(layers.LayerTypeEthernet)
 		if ethLayer != nil {
@@ -135,7 +125,7 @@ func capturePackets(iface string) {
 			srcIP = packetNetworkInfo.NetworkFlow().Src().String()
 			dstIP = packetNetworkInfo.NetworkFlow().Dst().String()
 
-			if !ipIsInBlock(dstIP, privateIPBlocks) || ipIsInBlock(srcIP, ignore) || ipIsInBlock(dstIP, ignore) || dstIP == *SERVER_IP || srcIP == *SERVER_IP {
+            if strings.Contains(srcIP, ":") || strings.Contains(dstIP, ":") || ipIsInBlock(srcIP, ignore) || ipIsInBlock(dstIP, ignore) {
 		        continue
 			}
 
@@ -143,7 +133,6 @@ func capturePackets(iface string) {
 
 		packetTransportInfo := packet.TransportLayer()
 		if packetTransportInfo != nil {
-
 			tcpLayer := packet.Layer(layers.LayerTypeTCP)
 			if tcpLayer != nil {
 				tcp, _ := tcpLayer.(*layers.TCP)
@@ -153,28 +142,52 @@ func capturePackets(iface string) {
 			}
 
 			dpt := packetTransportInfo.TransportFlow().Dst().String()
+            dstPort, err := strconv.Atoi(dpt)
+            if err != nil {
+                log.Println(err)
+            }
 
-			dstPort, err = strconv.Atoi(dpt)
-			if err != nil {
-				log.Println(err)
-			}
+            if dstPort > 30000 {
+                continue
+            }
 
-			if dstPort > 30000 {
-				continue
-			}
-
-			host := interface{}(map[string]interface{}{
-				"Src":  srcIP,
-				"Dst":  dstIP,
-				"Port": dpt,
-			})
-
-			jsonData, err := json.Marshal(host)
-			if err != nil {
-				log.Println(err)
-			}
-
-            input <- jsonData
+            connHash := fmt.Sprint(hash(srcIP+dstIP+dpt))
+            if _, ok := connMap[connHash]; ok {
+                if connMap[connHash] < minConnCount {
+                    connMap[connHash]++
+                    continue
+                } else if connMap[connHash] == minConnCount {
+                    connData := interface{}(map[string]interface{}{
+                        "ID": fmt.Sprint(connHash),
+                        "Src":  srcIP,
+                        "Dst":  dstIP,
+                        "Port": dpt,
+                        "Count": connMap[connHash],
+                    })
+                    jsonData, err := json.Marshal(connData)
+                    if err != nil {
+                        log.Println(err)
+                    }
+                    connMap[connHash]++
+                    input <- jsonData
+                } else {
+                    connData := interface{}(map[string]interface{}{
+                        "ID": connHash,
+                        "Src":  "",
+                        "Dst":  "",
+                        "Port": "",
+                        "Count": connMap[connHash],
+                    })
+                    jsonData, err := json.Marshal(connData)
+                    if err != nil {
+                        log.Println(err)
+                    }
+                    connMap[connHash]++
+                    input <- jsonData
+                }
+            } else {
+                connMap[connHash] = 1
+            }
 		}
 	}
 }
@@ -216,13 +229,13 @@ func initializeWebSocket(server, path string) *websocket.Conn {
     return conn
 }
 
-func RegisterAgent() {
+func RegisterAgent(hash string) {
     log.Println("Registering agent...")
 
     hostOS := runtime.GOOS
 
     host := interface{}(map[string]interface{}{
-        "ID": fmt.Sprint(hostHash),
+        "ID": fmt.Sprint(hash),
         "Hostname": hostname,
         "HostOS": hostOS,
     })
@@ -238,7 +251,7 @@ func RegisterAgent() {
     }
 }
 
-func checkin() {
+func checkin(hostHash string) {
     ping := []byte(fmt.Sprintf(`{"ID": %s, "Status": "Alive"}`, hostHash))
     for {
         status <- ping
