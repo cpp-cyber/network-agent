@@ -12,7 +12,6 @@ import (
 	"os"
 	"runtime"
 	"strconv"
-	"strings"
 	"time"
     "hash/fnv"
 
@@ -28,7 +27,6 @@ var SERVER_IP *string
 var input = make(chan []byte)
 var status = make(chan []byte)
 var hostname, _ = os.Hostname()
-var connIP string
 var hostHash string
 
 func main() {
@@ -75,12 +73,10 @@ func main() {
     hostHash = fmt.Sprint(hash(hostname))
     RegisterAgent()
 
-    conn := initializeWebSocket(*SERVER_IP)
+    conn := initializeWebSocket(*SERVER_IP, "/ws")
     defer conn.Close()
-    statusConn := initializeStatusWebSocket(*SERVER_IP)
+    statusConn := initializeWebSocket(*SERVER_IP, "/ws/agent/status")
     defer statusConn.Close()
-
-    connIP = strings.Split(conn.LocalAddr().String(), ":")[0]
 
     go checkin()
 
@@ -92,14 +88,14 @@ func main() {
     for {
         select {
             case t := <-input:
-                err := conn.WriteMessage(websocket.TextMessage, t)
+                err = conn.WriteMessage(websocket.TextMessage, t)
                 if err != nil {
                     log.Println(err)
                     return
                 }
 
             case t := <-status:
-                err := statusConn.WriteMessage(websocket.TextMessage, t)
+                err = statusConn.WriteMessage(websocket.TextMessage, t)
                 if err != nil {
                     log.Println(err)
                     return
@@ -210,19 +206,9 @@ func isInterfaceUp(interfaceName string) bool {
 	return iface.Flags&net.FlagUp != 0
 }
 
-func initializeWebSocket(server string) *websocket.Conn {
+func initializeWebSocket(server, path string) *websocket.Conn {
     log.Println("Initializing WebSocket...")
-    url := url.URL{Scheme: "ws", Host: server, Path: "/ws"}
-    conn, _, err := websocket.DefaultDialer.Dial(url.String(), nil)
-    if err != nil {
-        log.Println(err)
-    }
-    return conn
-}
-
-func initializeStatusWebSocket(server string) *websocket.Conn {
-    log.Println("Initializing status WebSocket...")
-    url := url.URL{Scheme: "ws", Host: server, Path: "/ws/agent/status"}
+    url := url.URL{Scheme: "ws", Host: server, Path: path}
     conn, _, err := websocket.DefaultDialer.Dial(url.String(), nil)
     if err != nil {
         log.Println(err)
@@ -245,8 +231,6 @@ func RegisterAgent() {
     if err != nil {
         log.Println(err)
     }
-
-    fmt.Println(string(jsonData))
 
     _, err = http.Post("http://"+*SERVER_IP+"/api/agents/add", "application/json", bytes.NewBuffer(jsonData))
     if err != nil {
