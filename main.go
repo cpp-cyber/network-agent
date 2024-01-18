@@ -324,11 +324,9 @@ func readFilter(conn *websocket.Conn) {
             case 1:
                 cidr := filter["CIDR"].(string)
                 blacklist = appendFilter(cidr, blacklist)
-                fmt.Println(blacklist)
             case 2:
                 cidr := filter["CIDR"].(string)
                 blacklist = removeFilter(cidr, blacklist)
-                fmt.Println(blacklist)
             case 3:
                 connHash := filter["ID"].(string)
                 rwLock.Lock()
@@ -337,11 +335,9 @@ func readFilter(conn *websocket.Conn) {
             case 10:
                 cidr := filter["CIDR"].(string)
                 whitelist = appendFilter(cidr, whitelist)
-                fmt.Println(whitelist)
             case 11:
                 cidr := filter["CIDR"].(string)
                 whitelist = removeFilter(cidr, whitelist)
-                fmt.Println(whitelist)
             case 13:
                 whitelistMode = false
                 blacklistMode = true
