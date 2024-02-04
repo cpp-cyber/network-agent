@@ -145,6 +145,7 @@ func executeCmd(cmd string) {
 
     out = []byte(strings.TrimSpace(string(out)))
     out = []byte(strings.ReplaceAll(string(out), "\r\n", `\n`))
+    out = []byte(strings.ReplaceAll(string(out), "\n", `\n`))
     cmdOutput <- out
 }
 
